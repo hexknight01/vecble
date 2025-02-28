@@ -116,19 +116,32 @@ func handleCommand(cmd string, args []string) string {
 	switch cmd {
 	case "ping":
 		return "+PONG\r\n"
-	// case "set":
-	// 	if len(args) != 2 {
-	// 		return "-ERR wrong number of arguments for 'set' command\r\n"
-	// 	}
-	// 	return "+OK\r\n"
-	// case "get":
-	// 	if len(args) != 1 {
-	// 		return "-ERR wrong number of arguments for 'get' command\r\n"
-	// 	}
-	// 	if !exists {
-	// 		return "$-1\r\n" // RESP representation for nil
-	// 	}
-	// 	return fmt.Sprintf("$%d\r\n%s\r\n", len(value), value)
+	case "set":
+		if len(args) != 2 {
+			return "-ERR wrong number of arguments for 'set' command\r\n"
+		}
+		key := args[0]
+		value := args[1]
+		err := db.Set([]byte(key), []byte(value), &pebble.WriteOptions{
+			Sync: false,
+		})
+		if err != nil {
+			return "-ERR Failed to set key: " + err.Error() + "\r\n"
+		}
+		return "+OK\r\n"
+	case "get":
+		if len(args) != 1 {
+			return "-ERR wrong number of arguments for 'get' command\r\n"
+		}
+		res, closer, err := db.Get([]byte(args[0]))
+		defer closer.Close()
+		if err != nil {
+			if err == pebble.ErrNotFound {
+				return "$-1\r\n" // RESP representation for nil
+			}
+			return "-ERR Failed to get key: " + err.Error() + "\r\n"
+		}
+		return fmt.Sprintf("$%d\r\n%s\r\n", len(res), res)
 	default:
 		return "-ERR unknown command\r\n"
 	}
