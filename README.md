@@ -1,1 +1,31 @@
 # RedPebble
+- [ ] Roadmap
+  - [ ] Client connection / request / respond
+  - [ ] RESP protocol
+  - [ ] Able to register commands
+  - [ ] In-memory database
+  - [ ] Active key expirer
+  - [ ] Implementing data structures
+    - [ ] String
+    - [ ] List
+    - [ ] Set
+    - [ ] Sorted Set
+    - [ ] Hash
+    - [ ] ...
+  - [ ] Tests
+    - [ ] For existing commands
+    - [ ] For key expirer
+  - [ ] Alpha Release
+
+- [ ] TODO beside Roadmap
+  - [ ] Persistence
+  - [ ] Redis config
+    - [ ] Default Redis config format
+    - [ ] YAML support
+    - [ ] JSON support
+  - [ ] Pub/Sub
+  - [ ] Redis modules
+  - [ ] Benchmarks
+  - [ ] Master-slave replication
+  - [ ] Cluster support
+  - [ ] ...
