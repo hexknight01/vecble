@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"log"
 	"net"
 	"strings"
@@ -55,93 +56,78 @@ func handleConnection(conn net.Conn) {
 	// conn.Write([]byte("+Hello! Welcome to Pebble-Redis.\r\n"))
 
 	for {
-		// Read the first line to determine the command type
-		line, err := reader.ReadString('\n')
-		// line, err := reader.ReadString('\n')
-		// if err != nil {
-		// 	log.Printf("Connection error: %v", err)
-		// 	return
-		// }
-		log.Printf("Received: %s", line)
-
-		// Check if the command follows RESP format
-		// if !strings.HasPrefix(firstLine, redisPrefix) {
-		// log.Println("Invalid command format")
-		// conn.Write([]byte("-ERR invalid command\r\n"))
-		// continue
-		// }
-
-		// Parse the full RESP command
-		command, args := parseRESP(line)
-		log.Printf("Parsed Command: %s, Args: %v", command, args)
-
-		// Execute and return response
-		response := handleCommand(command, args)
-		_, err = conn.Write([]byte(response))
+		cmd, args, err := parseRESP(reader)
 		if err != nil {
-			log.Printf("Failed to write response: %v", err)
+			conn.Write([]byte("-ERR Parse error\r\n"))
 			return
 		}
+		response := handleCommand(cmd, args)
+		conn.Write([]byte(response))
 	}
 }
 
-func parseRESP(line string) (string, []string) {
-	line = strings.TrimSpace(line) // Trim \r\n
-	println(line)
-	// Check if it's an array-type command (starts with "*")
-	if !strings.HasPrefix(line, "*") {
-		log.Printf("Invalid RESP format: %q", line)
-		return "", nil
+func parseRESP(reader *bufio.Reader) (string, []string, error) {
+	// Read the first line to determine the command type
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		return "", []string{}, err
 	}
 
-	// Read the command name (e.g., "$4\r\nPING\r\n")
-	// cmdLength, _ := reader.ReadString('\n') // Read "$4\r\n"
-	cmd, _ := reader.ReadString('\n') // Read "PING\r\n"
+	log.Printf("Command: %q", line)
+	line = strings.TrimSpace(line)
+	log.Printf("Line: %q", line)
 
-	cmd = strings.TrimSpace(cmd)
-	cmd = strings.ToUpper(cmd) // Convert to uppercase
-
-	// Read additional arguments if available
-	var args []string
-	for {
-		argLength, err := reader.ReadString('\n')
-		if err != nil || !strings.HasPrefix(argLength, "$") {
-			break
+	// Handle simple strings (single-line commands like PING)
+	if !strings.HasPrefix(line, "*") {
+		parts := strings.Fields(line)
+		if len(parts) == 0 {
+			return "", nil, fmt.Errorf("empty command")
 		}
-		arg, _ := reader.ReadString('\n')
+		return parts[0], parts[1:], nil
+	}
+
+	// Handle RESP arrays (multi-line commands like SET key value)
+	numArgs := 0
+	fmt.Sscanf(line, "*%d", &numArgs)
+
+	args := make([]string, 0, numArgs)
+	for i := 0; i < numArgs; i++ {
+		_, err := reader.ReadString('\n') // Read length (skip it)
+		if err != nil {
+			return "", nil, err
+		}
+		arg, err := reader.ReadString('\n') // Read actual argument
+		if err != nil {
+			return "", nil, err
+		}
 		args = append(args, strings.TrimSpace(arg))
 	}
 
-	return cmd, args
+	if len(args) == 0 {
+		return "", nil, fmt.Errorf("invalid command format")
+	}
+
+	return strings.ToLower(args[0]), args[1:], nil
 }
 
-// Handles Redis commands
 func handleCommand(cmd string, args []string) string {
-	cmd = strings.ToLower(cmd) // Ensure case-insensitive matching
 	log.Printf("Executing command: %s, Args: %v", cmd, args)
+
 	switch cmd {
 	case "ping":
-		log.Print("Executing command")
-		return "+OK\r\n"
-	// case "SET":
+		return "+PONG\r\n"
+	// case "set":
 	// 	if len(args) != 2 {
 	// 		return "-ERR wrong number of arguments for 'set' command\r\n"
 	// 	}
-	// 	lock.Lock()
-	// 	db.Set([]byte(args[0]), []byte(args[1]), nil)
-	// 	lock.Unlock()
-	// 	return redisOK
-	// case "GET":
+	// 	return "+OK\r\n"
+	// case "get":
 	// 	if len(args) != 1 {
 	// 		return "-ERR wrong number of arguments for 'get' command\r\n"
 	// 	}
-	// 	lock.RLock()
-	// 	value, closer, err := db.Get([]byte(args[0]))
-	// 	lock.RUnlock()
-	// 	if err != nil {
-	// 		return redisNil
+	// 	if !exists {
+	// 		return "$-1\r\n" // RESP representation for nil
 	// 	}
-	// 	defer closer.Close()
 	// 	return fmt.Sprintf("$%d\r\n%s\r\n", len(value), value)
 	default:
 		return "-ERR unknown command\r\n"
