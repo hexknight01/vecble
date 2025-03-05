@@ -1,4 +1,4 @@
-# RedPebble
+# Vector database that compatible with Redis protocol
 - # Roadmap version 0.1
   ## Network
   - [ ] Client connection / request / respond
