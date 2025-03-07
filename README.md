@@ -18,32 +18,37 @@ Supported distance functions are:
 - # Roadmap version 0.1
   ## Network
   - [ ] Client connection / request / respond
-  - [ ] RESP protocol
+  - [ ] SQL protocol
   - [ ] Design handle multiple threadings
   - [ ] Partioned data based on key to each threads
   - [ ] Transaction between threads
   - [ ] Handling concurrency
   ## Storage Engine
+  - [ ] Store vector data type
   - [ ] Able to register commands
   - [ ] Embeedeing repebble into main source
   - [ ] Flushing data from memory to disk
-  - [ ] Implementing basic command GET, SET and TTL
+  <!-- - [ ] Implementing basic command GET, SET and TTL -->
   - [ ] Active key expire
+  ##  Search engine
+  - [ ] Search vector types
+    - [ ] Simple Search euclidean distance
+    - [ ] Indexing algorithms like HNSW, PQ, or IVF,
   ##  Data structures
   - [ ] Implementing data structures
     - [ ] String
     - [ ] List
     - [ ] Set
-    - [ ] Sorted Set
+    <!-- - [ ] Sorted Set -->
     - [ ] Hash
     - [ ] ...
   ## Eviction strategies
-    - [ ] Implementing LRU algorithms
+    <!-- - [ ] Implementing LRU algorithms -->
   ## Signals
     - [ ] Graceful shutdown
   ## Advanced Datastrctures
-    - [ ] Skiplist
-    - [ ] Sotred set
+    <!-- - [ ] Skiplist -->
+    <!-- - [ ] Sotred set -->
     - [ ] ....
   ## Distributed system
     - [ ] Cluster failure handling
