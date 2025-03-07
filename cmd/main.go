@@ -1,3 +1,26 @@
+/*
+ *   Copyright (c) 2025 Vecble
+ *   All rights reserved.
+
+ *   Permission is hereby granted, free of charge, to any person obtaining a copy
+ *   of this software and associated documentation files (the "Software"), to deal
+ *   in the Software without restriction, including without limitation the rights
+ *   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *   copies of the Software, and to permit persons to whom the Software is
+ *   furnished to do so, subject to the following conditions:
+
+ *   The above copyright notice and this permission notice shall be included in all
+ *   copies or substantial portions of the Software.
+
+ *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *   SOFTWARE.
+ */
+
 package main
 
 import (
@@ -5,8 +28,13 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
+	"os/signal"
+	"readpebble/internal/storage"
+	"readpebble/pkg/client"
 	"strings"
 	"sync"
+	"syscall"
 
 	"github.com/cockroachdb/pebble"
 )
@@ -29,27 +57,51 @@ func main() {
 		log.Fatalf("Failed to open Pebble DB: %v", err)
 	}
 	defer db.Close()
-
+	storage := storage.NewStorage(db)
+	client := client.NewClient(&storage)
+	arr := []float64{1.1, 2.1, 3.1, 4.1}
+	client.Insert("1", arr)
+	res := client.Get("1")
+	fmt.Println(res)
+	return
 	listener, err := net.Listen("tcp", ":6379")
 	if err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 	log.Println("Redis-compatible server running on :6379")
+	// Handle SIGTERM for graceful shutdown
+	sigCh := make(chan os.Signal, 1)
+	quitCh := make(chan os.Signal)
+	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
 
+	var wg sync.WaitGroup
+	go func() {
+		<-sigCh
+		log.Println("Received shutdown signal, closing server...")
+		close(quitCh)    // Notify all goroutines to stop
+		listener.Close() // Stop accepting new connections
+		wg.Wait()        // Wait for all connections to close
+		db.Flush()
+		log.Println("Server shutdown complete")
+		os.Exit(0)
+	}()
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
 			log.Printf("Failed to accept connection: %v", err)
 			continue
 		}
-		go handleConnection(conn)
+		wg.Add(1)
+		go handleConnection(conn, &wg)
 	}
+
 }
 
-func handleConnection(conn net.Conn) {
+func handleConnection(conn net.Conn, wg *sync.WaitGroup) {
 	defer func() {
 		log.Printf("Client disconnected: %s", conn.RemoteAddr().String())
 		conn.Close()
+		wg.Done()
 	}()
 
 	reader := bufio.NewReader(conn)
@@ -134,14 +186,15 @@ func handleCommand(cmd string, args []string) string {
 			return "-ERR wrong number of arguments for 'get' command\r\n"
 		}
 		res, closer, err := db.Get([]byte(args[0]))
-		defer closer.Close()
 		if err != nil {
 			if err == pebble.ErrNotFound {
 				return "$-1\r\n" // RESP representation for nil
 			}
 			return "-ERR Failed to get key: " + err.Error() + "\r\n"
 		}
+		defer closer.Close()
 		return fmt.Sprintf("$%d\r\n%s\r\n", len(res), res)
+
 	default:
 		return "-ERR unknown command\r\n"
 	}
