@@ -31,6 +31,7 @@ import (
 	"os"
 	"os/signal"
 	"readpebble/internal/storage"
+	"readpebble/pkg/client"
 	"strings"
 	"sync"
 	"syscall"
@@ -56,8 +57,13 @@ func main() {
 		log.Fatalf("Failed to open Pebble DB: %v", err)
 	}
 	defer db.Close()
-	storage.NewStorage(db)
-
+	storage := storage.NewStorage(db)
+	client := client.NewClient(&storage)
+	arr := []float64{1.1, 2.1, 3.1, 4.1}
+	client.Insert("1", arr)
+	res := client.Get("1")
+	fmt.Println(res)
+	return
 	listener, err := net.Listen("tcp", ":6379")
 	if err != nil {
 		log.Fatalf("Failed to start server: %v", err)

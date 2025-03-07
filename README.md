@@ -1,4 +1,20 @@
-# Vector database that compatible with Redis protocol
+# Vector database that compatible with SQL protocol
+## Query patterns
+Create: CREATE TABLE items (id bigserial PRIMARY KEY, embedding vector(3));
+Insert: INSERT INTO items (embedding) VALUES ('[1,2,3]'), ('[4,5,6]');
+Search: SELECT * FROM items ORDER BY embedding <-> '[3,1,2]' LIMIT 5;
+Querying:
+Get the nearest neighbors to a vector
+
+SELECT * FROM items ORDER BY embedding <-> '[3,1,2]' LIMIT 5;
+Supported distance functions are:
+
+<-> - L2 distance
+<#> - (negative) inner product
+<=> - cosine distance
+<+> - L1 distance
+<~> - Hamming distance (binary vectors)
+<%> - Jaccard distance (binary vectors)
 - # Roadmap version 0.1
   ## Network
   - [ ] Client connection / request / respond

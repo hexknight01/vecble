@@ -22,15 +22,26 @@
  */
 package storage
 
-import "time"
+import (
+	"time"
+)
 
 type Entry struct {
-	Data      KeyValue[string, *Object]
+	Key       string
+	Value     *Object
 	ShardID   int
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
 
-type KeyValue[K comparable, V any] interface {
-	Get(key K) V
+func NewObject(value interface{}, objectType ObjectType) *Object {
+	return &Object{
+		ObjectType: objectType,
+		Value:      value,
+	}
 }
+
+// type KeyValue[K comparable, V any] interface {
+// 	Get(key K) V
+// 	Set(key K, value V)
+// }
